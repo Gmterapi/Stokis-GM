@@ -2064,10 +2064,7 @@ function updateUserAccount() {
     app.members = [];
     app.transactions = [];
 }
-                    });
-                    console.log('[System] Sample data initialized to Firestore');
-                }
-           } catch (err) {
+    } catch (err) {
     console.error('Gagal load Firestore:', err);
     // JANGAN auto-load sample data saat error
     app.products = [];
@@ -2427,5 +2424,6 @@ function updateUserAccount() {
     </script>
 </body>
 </html>
+
 
 
