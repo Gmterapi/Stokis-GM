@@ -457,7 +457,7 @@
         await setDoc(ref, data, { merge: true });
       };
 
-      window.listenUserDataRealtime = function(username, callback) {
+     window.listenUserDataRealtime = function(username, callback) {
         const ref = window.getUserDocRef(username);
         return onSnapshot(ref, (snap) => {
           if (snap.exists()) {
@@ -465,61 +465,6 @@
           }
         });
       };
-        window.afterLoginSuccess = async function(username, isAdmin) {
-    console.log(`[System] Login Successful! User: ${username}`);
-    
-    currentUser = username;
-    
-    // Tentukan STORAGE_KEY
-    if (isAdmin) {
-        app.STORAGE_KEY = app.STORAGE_KEY_ADMIN;
-    } else {
-        app.STORAGE_KEY = `stokis_data_${username}`;
-    }
-    
-    // Load data dari Firestore
-    try {
-        const userData = await window.loadUserDataFromFirestore(username);
-        
-        if (userData && userData.products && userData.products.length > 0) {
-            // Data ada, pakai data itu
-            console.log('[System] Data loaded from Firestore');
-            app.products = userData.products || [];
-            app.members = userData.members || [];
-            app.transactions = userData.transactions || [];
-            app.profile = userData.profile || app.profile;
-        } else {
-            // Data kosong, jangan auto-load sample
-            console.log('[System] No data in Firestore, starting with empty');
-            app.products = [];
-            app.members = [];
-            app.transactions = [];
-        }
-    } catch (error) {
-        console.error('[System] Error loading data:', error);
-    }
-    
-    // Render UI
-    app.render();
-    app.loadProfileUI();
-    app.updateModals();
-    if (typeof refreshManageUserSelect === 'function') {
-        refreshManageUserSelect();
-    }
-    
-    // Tunggu DOM siap, baru tampilkan
-    setTimeout(() => {
-        const container = document.getElementById('container');
-        const loginScreen = document.getElementById('login-screen');
-        const registerScreen = document.getElementById('register-screen');
-        
-        if (container) container.style.display = 'grid';
-        if (loginScreen) loginScreen.style.display = 'none';
-        if (registerScreen) registerScreen.style.display = 'none';
-        
-        console.log('[System] UI rendered successfully');
-    }, 100);
-};
       console.log("✅ Firestore integration for ONLINE storage ready.");
     </script>
 
@@ -2519,6 +2464,7 @@ async function doLogout() {
     </script>
 </body>
 </html>
+
 
 
 
