@@ -1873,10 +1873,17 @@ function updateUserAccount() {
             }
         }
         function doLogout() {
-            if(confirm('Yakin ingin keluar aplikasi?')) {
-                window.location.reload();
-            }
-        }
+    if(confirm('Yakin ingin keluar aplikasi?')) {
+        // Simpan data ke Firestore DULU sebelum logout
+        app.saveData();
+        
+        // Tunggu sebentar biar save selesai
+        setTimeout(() => {
+            // Baru logout
+            window.location.reload();
+        }, 500);
+    }
+}
 
         function saveWaAutoMsg() {
             app.profile.waAutoMsg = document.getElementById('profileWaAutoMsg').value;
@@ -2417,3 +2424,4 @@ function updateUserAccount() {
     </script>
 </body>
 </html>
+
