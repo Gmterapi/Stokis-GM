@@ -1873,11 +1873,21 @@ function updateUserAccount() {
             }
         }
         function doLogout() {
-            if(confirm('Yakin ingin keluar aplikasi?')) {
-                window.location.reload();
-            }
-        }
-
+    if(confirm('Yakin ingin keluar aplikasi?')) {
+        currentUser = null;
+        
+        // Sembunyikan aplikasi, tampilkan login screen
+        document.getElementById('container').style.display = 'none';
+        document.getElementById('login-screen').style.display = 'flex';
+        document.getElementById('register-screen').style.display = 'none';
+        
+        // Kosongkan form login
+        document.getElementById('loginUsername').value = '';
+        document.getElementById('loginPassword').value = '';
+        
+        console.log('[System] Logout berhasil.');
+    }
+}
         function saveWaAutoMsg() {
             app.profile.waAutoMsg = document.getElementById('profileWaAutoMsg').value;
             app.saveData();
@@ -2417,3 +2427,4 @@ function updateUserAccount() {
     </script>
 </body>
 </html>
+
