@@ -457,7 +457,7 @@
         await setDoc(ref, data, { merge: true });
       };
 
-     window.listenUserDataRealtime = function(username, callback) {
+      window.listenUserDataRealtime = function(username, callback) {
         const ref = window.getUserDocRef(username);
         return onSnapshot(ref, (snap) => {
           if (snap.exists()) {
@@ -465,6 +465,7 @@
           }
         });
       };
+
       console.log("✅ Firestore integration for ONLINE storage ready.");
     </script>
 
@@ -1871,46 +1872,11 @@ function updateUserAccount() {
                 alert('Format salah!');
             }
         }
-async function doLogout() {
-    if(confirm('Yakin ingin keluar aplikasi?')) {
-        try {
-            // Simpan data ke Firestore DULU
-            console.log('[System] Saving data before logout...');
-            await new Promise((resolve) => {
-                app.saveData();
-                setTimeout(resolve, 1000); // tunggu 1 detik
-            });
-            
-            // BARU logout
-            currentUser = null;
-            app.products = [];
-            app.members = [];
-            app.transactions = [];
-            app.profile = {
-                namaKoordinat: '',
-                kodeKoordinat: '',
-                photoProfil: null,
-                namaStokis: '',
-                waNumber: '',
-                alamatStokis: '',
-                waAutoMsg: ''
-            };
-            
-            // UI
-            document.getElementById('container').style.display = 'none';
-            document.getElementById('login-screen').style.display = 'flex';
-            document.getElementById('register-screen').style.display = 'none';
-            document.getElementById('loginUsername').value = '';
-            document.getElementById('loginPassword').value = '';
-            
-            console.log('[System] Logout berhasil. Data tersimpan di server.');
-            alert('Logout berhasil. Data tersimpan di server.');
-        } catch (e) {
-            console.error('Error during logout:', e);
-            alert('Ada error saat logout, silakan coba lagi.');
+        function doLogout() {
+            if(confirm('Yakin ingin keluar aplikasi?')) {
+                window.location.reload();
+            }
         }
-    }
-}
 
         function saveWaAutoMsg() {
             app.profile.waAutoMsg = document.getElementById('profileWaAutoMsg').value;
@@ -2436,38 +2402,18 @@ async function doLogout() {
             }
         }
 
-       document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', () => {
     app.loadUsers();
-    refreshManageUserSelect();
-    
-    // Cek apakah ada user yang masih aktif (dari variable currentUser)
-    if (currentUser) {
-        // Ada user aktif, load data dari Firestore
-        console.log('[System] User still active, loading data from Firestore...');
-        
-        // Simulasi load data (dalam praktik sudah dilakukan saat login)
-        app.render();
-        app.loadProfileUI();
-        app.updateModals();
-        
-        // Tampilkan aplikasi
-        document.getElementById('login-screen').style.display = 'none';
-        document.getElementById('register-screen').style.display = 'none';
-        document.getElementById('container').style.display = 'grid';
-    } else {
-        // Tidak ada user aktif, tampilkan login
-        document.getElementById('login-screen').style.display = 'flex';
-        document.getElementById('register-screen').style.display = 'none';
-        document.getElementById('container').style.display = 'none';
-    }
+    refreshManageUserSelect();   // isi dropdown user
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('register-screen').style.display = 'none';
 });
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal')) { e.target.classList.remove('active'); }
+            if (window.innerWidth <= 768 && !e.target.closest('.sidebar') && !e.target.closest('.mobile-menu-btn')) {
+                document.querySelector('.sidebar').classList.remove('active');
+            }
+        });
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
