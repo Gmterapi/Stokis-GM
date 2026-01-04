@@ -489,7 +489,7 @@
             app.transactions = userData.transactions || [];
             app.profile = userData.profile || app.profile;
         } else {
-            // Data kosong, jangan auto-load sample data
+            // Data kosong, jangan auto-load sample
             console.log('[System] No data in Firestore, starting with empty');
             app.products = [];
             app.members = [];
@@ -507,16 +507,18 @@
         refreshManageUserSelect();
     }
     
-    // Tampilkan aplikasi, sembunyikan login
-    const container = document.getElementById('container');
-    const loginScreen = document.getElementById('login-screen');
-    const registerScreen = document.getElementById('register-screen');
-    
-    if (container) container.style.display = 'grid';
-    if (loginScreen) loginScreen.style.display = 'none';
-    if (registerScreen) registerScreen.style.display = 'none';
-    
-    console.log('[System] UI rendered successfully');
+    // Tunggu DOM siap, baru tampilkan
+    setTimeout(() => {
+        const container = document.getElementById('container');
+        const loginScreen = document.getElementById('login-screen');
+        const registerScreen = document.getElementById('register-screen');
+        
+        if (container) container.style.display = 'grid';
+        if (loginScreen) loginScreen.style.display = 'none';
+        if (registerScreen) registerScreen.style.display = 'none';
+        
+        console.log('[System] UI rendered successfully');
+    }, 100);
 };
       console.log("✅ Firestore integration for ONLINE storage ready.");
     </script>
@@ -2517,6 +2519,7 @@ async function doLogout() {
     </script>
 </body>
 </html>
+
 
 
 
