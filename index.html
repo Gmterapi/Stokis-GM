@@ -1872,22 +1872,43 @@ function updateUserAccount() {
                 alert('Format salah!');
             }
         }
-        function doLogout() {
+     function doLogout() {
     if(confirm('Yakin ingin keluar aplikasi?')) {
+        // Reset state
         currentUser = null;
+        app.products = [];
+        app.members = [];
+        app.transactions = [];
+        app.profile = {
+            namaKoordinat: '',
+            kodeKoordinat: '',
+            photoProfil: null,
+            namaStokis: '',
+            waNumber: '',
+            alamatStokis: '',
+            waAutoMsg: ''
+        };
         
-        // Sembunyikan aplikasi, tampilkan login screen
-        document.getElementById('container').style.display = 'none';
-        document.getElementById('login-screen').style.display = 'flex';
-        document.getElementById('register-screen').style.display = 'none';
+        // Sembunyikan aplikasi
+        const container = document.getElementById('container');
+        const loginScreen = document.getElementById('login-screen');
+        const registerScreen = document.getElementById('register-screen');
+        
+        if (container) container.style.display = 'none';
+        if (loginScreen) loginScreen.style.display = 'flex';
+        if (registerScreen) registerScreen.style.display = 'none';
         
         // Kosongkan form login
-        document.getElementById('loginUsername').value = '';
-        document.getElementById('loginPassword').value = '';
+        const loginUsername = document.getElementById('loginUsername');
+        const loginPassword = document.getElementById('loginPassword');
+        if (loginUsername) loginUsername.value = '';
+        if (loginPassword) loginPassword.value = '';
         
         console.log('[System] Logout berhasil.');
+        alert('Logout berhasil. Silakan login kembali.');
     }
 }
+
         function saveWaAutoMsg() {
             app.profile.waAutoMsg = document.getElementById('profileWaAutoMsg').value;
             app.saveData();
@@ -2427,4 +2448,5 @@ function updateUserAccount() {
     </script>
 </body>
 </html>
+
 
