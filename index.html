@@ -2057,20 +2057,23 @@ function updateUserAccount() {
                         app.profile = { ...app.profile, ...remoteData.profile };
                     }
                     console.log('[System] Data loaded from Firestore');
-                } else {
-                    app.loadSampleData();
-                    await window.saveUserDataToFirestore(currentUser, {
-                        products: app.products,
-                        members: app.members,
-                        transactions: app.transactions,
-                        profile: app.profile
+               } else {
+    console.log('[System] No data found, starting with empty');
+    // JANGAN auto-load sample data
+    app.products = [];
+    app.members = [];
+    app.transactions = [];
+}
                     });
                     console.log('[System] Sample data initialized to Firestore');
                 }
-            } catch (err) {
-                console.error('Gagal load Firestore, fallback sample:', err);
-                app.loadSampleData();
-            }
+           } catch (err) {
+    console.error('Gagal load Firestore:', err);
+    // JANGAN auto-load sample data saat error
+    app.products = [];
+    app.members = [];
+    app.transactions = [];
+}
 
             // Realtime listener (opsional, diaktifkan)
             unsubscribeRealtime = window.listenUserDataRealtime(currentUser, (data) => {
@@ -2424,4 +2427,5 @@ function updateUserAccount() {
     </script>
 </body>
 </html>
+
 
