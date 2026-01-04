@@ -1872,40 +1872,44 @@ function updateUserAccount() {
                 alert('Format salah!');
             }
         }
-     function doLogout() {
+async function doLogout() {
     if(confirm('Yakin ingin keluar aplikasi?')) {
-        // Reset state
-        currentUser = null;
-        app.products = [];
-        app.members = [];
-        app.transactions = [];
-        app.profile = {
-            namaKoordinat: '',
-            kodeKoordinat: '',
-            photoProfil: null,
-            namaStokis: '',
-            waNumber: '',
-            alamatStokis: '',
-            waAutoMsg: ''
-        };
-        
-        // Sembunyikan aplikasi
-        const container = document.getElementById('container');
-        const loginScreen = document.getElementById('login-screen');
-        const registerScreen = document.getElementById('register-screen');
-        
-        if (container) container.style.display = 'none';
-        if (loginScreen) loginScreen.style.display = 'flex';
-        if (registerScreen) registerScreen.style.display = 'none';
-        
-        // Kosongkan form login
-        const loginUsername = document.getElementById('loginUsername');
-        const loginPassword = document.getElementById('loginPassword');
-        if (loginUsername) loginUsername.value = '';
-        if (loginPassword) loginPassword.value = '';
-        
-        console.log('[System] Logout berhasil.');
-        alert('Logout berhasil. Silakan login kembali.');
+        try {
+            // Simpan data ke Firestore DULU
+            console.log('[System] Saving data before logout...');
+            await new Promise((resolve) => {
+                app.saveData();
+                setTimeout(resolve, 1000); // tunggu 1 detik
+            });
+            
+            // BARU logout
+            currentUser = null;
+            app.products = [];
+            app.members = [];
+            app.transactions = [];
+            app.profile = {
+                namaKoordinat: '',
+                kodeKoordinat: '',
+                photoProfil: null,
+                namaStokis: '',
+                waNumber: '',
+                alamatStokis: '',
+                waAutoMsg: ''
+            };
+            
+            // UI
+            document.getElementById('container').style.display = 'none';
+            document.getElementById('login-screen').style.display = 'flex';
+            document.getElementById('register-screen').style.display = 'none';
+            document.getElementById('loginUsername').value = '';
+            document.getElementById('loginPassword').value = '';
+            
+            console.log('[System] Logout berhasil. Data tersimpan di server.');
+            alert('Logout berhasil. Data tersimpan di server.');
+        } catch (e) {
+            console.error('Error during logout:', e);
+            alert('Ada error saat logout, silakan coba lagi.');
+        }
     }
 }
 
@@ -2461,6 +2465,7 @@ function updateUserAccount() {
     </script>
 </body>
 </html>
+
 
 
 
