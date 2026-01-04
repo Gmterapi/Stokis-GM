@@ -2433,20 +2433,34 @@ function updateUserAccount() {
             }
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
+       document.addEventListener('DOMContentLoaded', () => {
     app.loadUsers();
-    refreshManageUserSelect();   // isi dropdown user
-    document.getElementById('login-screen').style.display = 'flex';
-    document.getElementById('register-screen').style.display = 'none';
+    refreshManageUserSelect();
+    
+    // Cek apakah ada user yang masih aktif (dari variable currentUser)
+    if (currentUser) {
+        // Ada user aktif, load data dari Firestore
+        console.log('[System] User still active, loading data from Firestore...');
+        
+        // Simulasi load data (dalam praktik sudah dilakukan saat login)
+        app.render();
+        app.loadProfileUI();
+        app.updateModals();
+        
+        // Tampilkan aplikasi
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('register-screen').style.display = 'none';
+        document.getElementById('container').style.display = 'grid';
+    } else {
+        // Tidak ada user aktif, tampilkan login
+        document.getElementById('login-screen').style.display = 'flex';
+        document.getElementById('register-screen').style.display = 'none';
+        document.getElementById('container').style.display = 'none';
+    }
 });
-        document.addEventListener('click', (e) => {
-            if (e.target.classList.contains('modal')) { e.target.classList.remove('active'); }
-            if (window.innerWidth <= 768 && !e.target.closest('.sidebar') && !e.target.closest('.mobile-menu-btn')) {
-                document.querySelector('.sidebar').classList.remove('active');
-            }
-        });
     </script>
 </body>
 </html>
+
 
 
