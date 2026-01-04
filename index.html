@@ -406,52 +406,68 @@
         }
     </style>
 
-<!-- ============================================ -->
-<!-- FIRESTORE SYNC INTEGRATION -->
-<!-- ============================================ -->
+    <!-- ============================================ -->
+    <!-- FIREBASE + FIRESTORE (PRODUCTION)          -->
+    <!-- ============================================ -->
 
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-  import { getFirestore, collection, setDoc, doc, getDocs, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+    <script type="module">
+      import { 
+        initializeApp 
+      } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+      import { 
+        getFirestore, 
+        collection, 
+        setDoc, 
+        doc, 
+        getDoc,
+        onSnapshot
+      } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyA7i0bGhjKHZ788Ir7xTDFM0LXAevnWKsI",
-    authDomain: "sistem-stokis-gmrj.firebaseapp.com",
-    projectId: "sistem-stokis-gmrj",
-    storageBucket: "sistem-stokis-gmrj.firebasestorage.app",
-    messagingSenderId: "288883517168",
-    appId: "1:288883517168:web:d5cdd864aa944205df8435",
-    measurementId: "G-12KELDXJ1J"
-  };
+      const firebaseConfig = {
+        apiKey: "AIzaSyA7i0bGhjKHZ788Ir7xTDFM0LXAevnWKsI",
+        authDomain: "sistem-stokis-gmrj.firebaseapp.com",
+        projectId: "sistem-stokis-gmrj",
+        storageBucket: "sistem-stokis-gmrj.firebasestorage.app",
+        messagingSenderId: "288883517168",
+        appId: "1:288883517168:web:d5cdd864aa944205df8435",
+        measurementId: "G-12KELDXJ1J"
+      };
 
-  const appFirebase = initializeApp(firebaseConfig);
-  const db = getFirestore(appFirebase);
-  window.firestoreDB = db;
+      const appFirebase = initializeApp(firebaseConfig);
+      const db = getFirestore(appFirebase);
+      window.firestoreDB = db;
 
-  // Auto-sync: Simpan ke localStorage DAN Firestore sekaligus
-  const originalLocalStorage = window.localStorage.setItem;
-  window.localStorage.setItem = function(key, value) {
-    originalLocalStorage.call(this, key, value);
-    
-    // Auto backup ke Firestore
-    try {
-      setDoc(doc(db, 'backups', key), {
-        data: value,
-        timestamp: new Date(),
-        key: key
-      });
-      console.log(`✅ Data '${key}' auto-synced to Firestore!`);
-    } catch (error) {
-      console.log(`⚠️ Firestore sync error (data still saved locally): ${error.message}`);
-    }
-  };
+      // === HELPERS DATA PER USER (ONLINE STORAGE) ===
+      window.getUserDocRef = function(username) {
+        const clean = (username || '').toLowerCase();
+        return doc(db, 'stokisDatas', clean);
+      };
 
-  console.log("✅ Firestore integration loaded! Ready for Multi-User Sync.");
-</script>
+      window.loadUserDataFromFirestore = async function(username) {
+        const ref = window.getUserDocRef(username);
+        const snap = await getDoc(ref);
+        if (snap.exists()) {
+          return snap.data();
+        }
+        return null;
+      };
 
-<!-- ============================================ -->
-<!-- END FIRESTORE SYNC -->
-<!-- ============================================ -->
+      window.saveUserDataToFirestore = async function(username, data) {
+        const ref = window.getUserDocRef(username);
+        await setDoc(ref, data, { merge: true });
+      };
+
+      window.listenUserDataRealtime = function(username, callback) {
+        const ref = window.getUserDocRef(username);
+        return onSnapshot(ref, (snap) => {
+          if (snap.exists()) {
+            callback(snap.data());
+          }
+        });
+      };
+
+      console.log("✅ Firestore integration for ONLINE storage ready.");
+    </script>
 
 </head>
 <body>
@@ -556,7 +572,6 @@
                         <div class="stat-value" id="total-points">0</div>
                     </div>
                 </div>
-
                 <div class="card">
                     <h3>📊 Transaksi Penjualan Terbaru</h3>
                     <div class="table-wrapper">
@@ -657,7 +672,6 @@
                             <button class="btn btn-wa" onclick="shareToWhatsApp('transactions-table', 'Laporan Transaksi')">📱 Kirim WA</button>
                         </div>
                     </div>
-
                     <div class="table-wrapper">
                         <table id="transactions-table">
                             <thead>
@@ -718,7 +732,6 @@
             <!-- Laporan -->
             <div id="reports" class="tab-content" style="display: none;">
                 <h2 style="margin-bottom: var(--spacing-24);">Laporan & Analisis</h2>
-
                 <div class="report-accordion active" id="acc-overview">
                     <div class="report-header" onclick="toggleReportSection('overview')">
                         <h3>📊 Ringkasan (Beli vs Jual)</h3>
@@ -845,46 +858,74 @@
                 </div>
             </div>
 
-            <!-- Pengaturan -->
-            <div id="settings" class="tab-content" style="display: none;">
-                <div class="card">
-                    <h3>⚙️ Pengaturan & Data</h3>
-                    <div class="backup-section" style="display: grid; gap: var(--spacing-16); padding: var(--spacing-20); background: #f0fdf4; border-radius: var(--radius); border: 1px dashed var(--color-primary);">
-                        
-                        <div>
-                            <h4>📋 Format Pesan Otomatis WA</h4>
-                            <p style="font-size: 13px; color: var(--color-text-light); margin-bottom: var(--spacing-8);">Template pesan saat kirim WA ke member. Gunakan <code>[Nama]</code> untuk nama member.</p>
-                            <textarea id="profileWaAutoMsg" rows="3" placeholder="Contoh: Halo [Nama], stok produk sudah tersedia. Silakan ambil ya."></textarea>
-                            <button class="btn btn-primary" style="margin-top: 10px; width: 100%;" onclick="saveWaAutoMsg()">💾 Simpan Pesan</button>
-                        </div>
-                        <hr style="border: 0; border-top: 1px solid #d1fae5;">
-                        <div>
-                            <h4>💾 Backup Database (Download)</h4>
-                            <p style="font-size: 13px; color: var(--color-text-light); margin-bottom: var(--spacing-8);">Download semua data ke file JSON.</p>
-                            <button class="btn btn-primary" onclick="exportData()">⬇️ Download Backup (.json)</button>
-                        </div>
-                        <hr style="border: 0; border-top: 1px solid #d1fae5;">
-                        <div>
-                            <h4>☁️ Restore Database (Upload)</h4>
-                            <p style="font-size: 13px; color: var(--color-text-light); margin-bottom: var(--spacing-8);">Upload file backup JSON.</p>
-                            <input type="file" id="importFile" accept=".json" style="margin-bottom: var(--spacing-8);">
-                            <button class="btn btn-warning" onclick="importData()">⬆️ Upload & Restore Data</button>
-                        </div>
-                        <hr style="border: 0; border-top: 1px solid #d1fae5;">
-                        <div>
-                            <h4>⚠️ Zona Bahaya</h4>
-                            <p style="font-size: 13px; color: var(--color-text-light); margin-bottom: var(--spacing-8);">Hapus semua data dan kembali ke data contoh.</p>
-                            <button class="btn btn-danger" onclick="resetData()">🗑️ Reset Semua Data</button>
-                        </div>
-                        <hr style="border: 0; border-top: 1px solid #d1fae5;">
-                        <div style="text-align: center; margin-top: 20px; background: white; padding: 10px; border-radius: 8px; border: 1px solid #e5e7eb;">
-                            <button class="btn btn-danger" onclick="doLogout()">🚪 Logout</button>
-                        </div>
-                    </div>
+<!-- Pengaturan -->
+<div id="settings" class="tab-content" style="display: none;">
+    <div class="card">
+        <h3>⚙️ Pengaturan & Data</h3>
+        <div class="backup-section" style="display: grid; gap: var(--spacing-16); padding: var(--spacing-20); background: #f0fdf4; border-radius: var(--radius); border: 1px dashed var(--color-primary);">
+            
+            <div>
+                <h4>📋 Format Pesan Otomatis WA</h4>
+                <p style="font-size: 13px; color: var(--color-text-light); margin-bottom: var(--spacing-8);">Template pesan saat kirim WA ke member. Gunakan <code>[Nama]</code> untuk nama member.</p>
+                <textarea id="profileWaAutoMsg" rows="3" placeholder="Contoh: Halo [Nama], stok produk sudah tersedia. Silakan ambil ya."></textarea>
+                <button class="btn btn-primary" style="margin-top: 10px; width: 100%;" onclick="saveWaAutoMsg()">💾 Simpan Pesan</button>
+            </div>
+
+            <hr style="border: 0; border-top: 1px solid #d1fae5;">
+            <div>
+                <h4>💾 Backup Database (Download)</h4>
+                <p style="font-size: 13px; color: var(--color-text-light); margin-bottom: var(--spacing-8);">Download semua data ke file JSON.</p>
+                <button class="btn btn-primary" onclick="exportData()">⬇️ Download Backup (.json)</button>
+            </div>
+
+            <hr style="border: 0; border-top: 1px solid #d1fae5;">
+            <div>
+                <h4>☁️ Restore Database (Upload)</h4>
+                <p style="font-size: 13px; color: var(--color-text-light); margin-bottom: var(--spacing-8);">Upload file backup JSON.</p>
+                <input type="file" id="importFile" accept=".json" style="margin-bottom: var(--spacing-8);">
+                <button class="btn btn-warning" onclick="importData()">⬆️ Upload & Restore Data</button>
+            </div>
+
+            <hr style="border: 0; border-top: 1px solid #d1fae5;">
+            <div>
+                <h4>⚠️ Zona Bahaya</h4>
+                <p style="font-size: 13px; color: var(--color-text-light); margin-bottom: var(--spacing-8);">Hapus semua data dan kembali ke data contoh.</p>
+                <button class="btn btn-danger" onclick="resetData()">🗑️ Reset Semua Data</button>
+            </div>
+
+            <!-- Manajemen User Login -->
+            <hr style="border: 0; border-top: 1px solid #d1fae5;">
+            <div>
+                <h4>👥 Manajemen User Login</h4>
+                <p style="font-size: 13px; color: var(--color-text-light); margin-bottom: var(--spacing-8);">
+                    Ganti username dan password user yang sudah terdaftar (hanya tersimpan di browser/perangkat ini).
+                </p>
+
+                <div style="margin-bottom: 12px; padding: 10px; border-radius: 8px; background:#fff; border:1px solid #e5e7eb;">
+                    <label style="font-size: 13px; font-weight:600; margin-bottom:6px; display:block;">Pilih User</label>
+                    <select id="manageUserSelect" style="margin-bottom:8px; width:100%; padding:8px 10px; border-radius:8px; border:1px solid #d1d5db;">
+                        <option value="">-- Pilih User --</option>
+                    </select>
+
+                    <label style="font-size: 13px; font-weight:600; margin-bottom:6px; display:block;">Username Baru</label>
+                    <input type="text" id="manageUserNewName" placeholder="Username baru (huruf kecil, tanpa spasi)" style="margin-bottom:8px;">
+
+                    <label style="font-size: 13px; font-weight:600; margin-bottom:6px; display:block;">Password Baru</label>
+                    <input type="password" id="manageUserNewPass" placeholder="Password baru (min 3 karakter)">
+
+                    <button class="btn btn-primary" style="margin-top:8px; width:100%;" onclick="updateUserAccount()">
+                        💾 Simpan Perubahan
+                    </button>
                 </div>
+            </div>
+
+            <hr style="border: 0; border-top: 1px solid #d1fae5;">
+            <div style="text-align: center; margin-top: 20px; background: white; padding: 10px; border-radius: 8px; border: 1px solid #e5e7eb;">
+                <button class="btn btn-danger" onclick="doLogout()">🚪 Logout</button>
             </div>
         </div>
     </div>
+</div>
 
     <!-- Modal Produk -->
     <div id="productModal" class="modal">
@@ -1027,7 +1068,7 @@
                 waNumber: '',
                 alamatStokis: '',
                 waAutoMsg: ''
-            },
+            }, 
             STORAGE_KEY_ADMIN: 'stokis_system_data_v46_final_fix_no_debug', 
             STORAGE_KEY: 'stokis_system_data_v46_final_fix_no_debug',
             
@@ -1038,7 +1079,7 @@
                 if (!this.STORAGE_KEY || this.STORAGE_KEY === '') {
                     this.STORAGE_KEY = this.STORAGE_KEY_ADMIN;
                 }
-                this.loadData();
+                // loadData DIPINDAH ke afterLoginSuccess (online)
                 this.setupEventListeners();
                 this.render();
                 const dashboard = document.getElementById('dashboard');
@@ -1049,6 +1090,7 @@
                 this.loadProfileUI();
             },
 
+            // loadData lokal tidak dipakai lagi untuk penyimpanan utama
             loadData() {
                 const storedData = localStorage.getItem(this.STORAGE_KEY);
                 if (storedData) {
@@ -1106,8 +1148,9 @@
                 }
             },
 
+            // === SAVE KE FIRESTORE (ONLINE) ===
             saveData() {
-                console.log(`[System] Saving Data to Key: ${app.STORAGE_KEY}`);
+                console.log(`[System] Saving Data (ONLINE) for user: ${currentUser}`);
 
                 const data = {
                     products: this.products,
@@ -1116,21 +1159,26 @@
                     profile: this.profile
                 };
                 
-                try {
-                    localStorage.setItem(app.STORAGE_KEY, JSON.stringify(data));
-                    console.log(`[System] Save Success. Members: ${data.members.length}, Products: ${data.products.length}`);
-                } catch (e) {
-                    console.error("Save Error:", e);
-                    alert("Gagal menyimpan data! Pastikan penyimpanan browser aktif (LocalStorage) dan tidak penuh.");
+                if (window.saveUserDataToFirestore && currentUser) {
+                    window.saveUserDataToFirestore(currentUser, data)
+                      .then(() => {
+                        console.log('[System] Save to Firestore success');
+                      })
+                      .catch(e => {
+                        console.error("Save Error Firestore:", e);
+                        alert("Gagal menyimpan data ke server. Cek koneksi internet.");
+                      });
+                } else {
+                    console.warn('Firestore helper / currentUser belum siap, data tidak tersimpan!');
                 }
             },
 
             resetData() {
                 if(confirm('Apakah Anda yakin ingin menghapus SEMUA data Anda?')) {
-                    localStorage.removeItem(this.STORAGE_KEY);
-                    this.loadData(); 
+                    this.loadSampleData(); 
+                    this.saveData();
                     this.render();
-                    alert('Data Anda di-reset.');
+                    alert('Data Anda di-reset (online).');
                 }
             },
 
@@ -1167,7 +1215,6 @@
                     { name: 'GM SKINCARE', point: 0.30 },
                     { name: 'Pheromone Black Series', point: 0.06 }
                 ];
-
                 this.products = originalProductList.map(p => {
                     return {
                         code: 'PROD_' + Date.now() + '_' + p.name.replace(/\s/g, ''),
@@ -1459,8 +1506,82 @@
                 }
             }
         };
+function refreshManageUserSelect() {
+    const sel = document.getElementById('manageUserSelect');
+    const newNameInput = document.getElementById('manageUserNewName');
+    const newPassInput = document.getElementById('manageUserNewPass');
+    if (!sel) return;
 
-        // === LOGIKA SUPPORT ===
+    app.loadUsers();
+    sel.innerHTML = '<option value="">-- Pilih User --</option>';
+    app.usersCredentials.forEach(u => {
+        sel.innerHTML += `<option value="${u.username}">${u.username}</option>`;
+    });
+
+    if (newNameInput) newNameInput.value = '';
+    if (newPassInput) newPassInput.value = '';
+}
+
+function updateUserAccount() {
+    const sel = document.getElementById('manageUserSelect');
+    const newNameInput = document.getElementById('manageUserNewName');
+    const newPassInput = document.getElementById('manageUserNewPass');
+
+    const oldUsername = (sel?.value || '').toLowerCase();
+    const newUsernameRaw = (newNameInput?.value || '').trim().toLowerCase();
+    const newPassRaw = (newPassInput?.value || '').trim().toLowerCase();
+
+    if (!oldUsername) {
+        alert('Pilih user terlebih dahulu.');
+        return;
+    }
+    if (!newUsernameRaw && !newPassRaw) {
+        alert('Isi minimal salah satu: username baru atau password baru.');
+        return;
+    }
+
+    if (newUsernameRaw) {
+        if (newUsernameRaw.length < 3) {
+            alert('Username baru minimal 3 karakter.');
+            return;
+        }
+        if (newUsernameRaw.indexOf(' ') !== -1) {
+            alert('Username baru tidak boleh mengandung spasi.');
+            return;
+        }
+    }
+
+    if (newPassRaw && newPassRaw.length < 3) {
+        alert('Password baru minimal 3 karakter.');
+        return;
+    }
+
+    app.loadUsers();
+    const user = app.usersCredentials.find(u => u.username === oldUsername);
+    if (!user) {
+        alert('User tidak ditemukan di penyimpanan browser ini.');
+        return;
+    }
+
+    if (newUsernameRaw && newUsernameRaw !== oldUsername) {
+        const exists = app.usersCredentials.find(u => u.username === newUsernameRaw);
+        if (exists) {
+            alert('Username baru sudah digunakan user lain.');
+            return;
+        }
+        user.username = newUsernameRaw;
+    }
+
+    if (newPassRaw) {
+        user.password = newPassRaw;
+    }
+
+    app.saveUsers();
+    refreshManageUserSelect();
+    alert('Akun user berhasil diperbarui.');
+}
+
+        // === LOGIKA SUPPORT (TIDAK DIUBAH) ===
         function openAddProductModal() {
             document.getElementById('productModalTitle').innerText = 'Tambah Produk';
             document.querySelector('#productModal form').reset();
@@ -1757,109 +1878,361 @@
             }
         }
 
-        function toggleReportSection(id) {
-            document.querySelectorAll('.report-body').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.report-accordion').forEach(el => el.classList.remove('active'));
-
-            const target = document.getElementById(id);
-            const parent = document.getElementById('acc-' + id);
-            
-            target.classList.add('active');
-            parent.classList.add('active');
-
-            if(id === 'overview') renderOverviewReport();
-            else if(id === 'ranking') renderRankingTable();
+        function saveWaAutoMsg() {
+            app.profile.waAutoMsg = document.getElementById('profileWaAutoMsg').value;
+            app.saveData();
+            alert('Format pesan otomatis disimpan!');
         }
 
-        function printPage(pageId) {
-            document.body.classList.remove('printing-transactions');
-            document.body.classList.remove('printing-points');
-            document.body.classList.remove('printing-members');
-            
-            updatePrintHeader();
-
-            if (pageId === 'transactions') {
+        function printPage(tabId) {
+            document.body.classList.remove('printing-transactions','printing-points','printing-members','printing-report-overview','printing-report-ranking');
+            if (tabId === 'transactions') {
                 document.body.classList.add('printing-transactions');
-            } else if (pageId === 'points') {
+            } else if (tabId === 'points') {
                 document.body.classList.add('printing-points');
-            } else if (pageId === 'members') {
+            } else if (tabId === 'members') {
                 document.body.classList.add('printing-members');
             }
-
             window.print();
-
-            setTimeout(() => {
-                document.body.classList.remove('printing-transactions');
-                document.body.classList.remove('printing-points');
-                document.body.classList.remove('printing-members');
-            }, 1000);
+            document.body.className = '';
         }
-        
+
         function printMembers() {
             printPage('members');
         }
 
         function printReport() {
-            document.body.classList.remove('printing-transactions');
-            document.body.classList.remove('printing-points');
-            document.body.classList.remove('printing-members');
-            document.body.classList.remove('printing-report-overview');
-            document.body.classList.remove('printing-report-ranking');
-            
-            updatePrintHeader();
-
-            const overviewBody = document.getElementById('overview');
-            const rankingBody = document.getElementById('ranking');
-            
-            if(overviewBody.classList.contains('active')) {
-                document.body.classList.add('printing-report-overview');
-            } else if (rankingBody.classList.contains('active')) {
-                document.body.classList.add('printing-report-ranking');
-            }
-
+            document.body.classList.add('printing-report-overview');
+            renderOverviewReport();
             window.print();
-            
-            setTimeout(() => {
-                document.body.classList.remove('printing-transactions');
-                document.body.classList.remove('printing-points');
-                document.body.classList.remove('printing-members');
-                document.body.classList.remove('printing-report-overview');
-                document.body.classList.remove('printing-report-ranking');
-            }, 1000);
+            document.body.className = '';
         }
 
-        function updatePrintHeader() {
-            const body = document.body;
-            
-            let headerEl = document.getElementById('dynamic-print-header');
-            if(!headerEl) {
-                headerEl = document.createElement('div');
-                headerEl.id = 'dynamic-print-header';
-                headerEl.className = 'print-header';
-                headerEl.innerHTML = `
-                    <div class="print-header">
-                        <img id="print-logo-img" src="" style="display:none; max-width: 60px; margin: 0 auto 10px;">
-                        <h2 id="print-title">Data Transaksi Stokis</h2>
-                        <p id="print-info" style="margin: 0; line-height: 1.4; font-size: 12px;"></p>
-                    </div>
-                `;
-                body.appendChild(headerEl); 
-            }
-
-            const logoImg = headerEl.querySelector('#print-logo-img');
-            const infoP = headerEl.querySelector('#print-info');
-
-            if(app.profile.photoProfil) {
-                logoImg.src = app.profile.photoProfil;
-                logoImg.style.display = 'block';
+        function toggleReportSection(section) {
+            const accOverview = document.getElementById('acc-overview');
+            const accRanking = document.getElementById('acc-ranking');
+            if (section === 'overview') {
+                accOverview.classList.add('active');
+                accRanking.classList.remove('active');
+                renderOverviewReport();
+                renderRankingReport();
             } else {
-                logoImg.style.display = 'none';
+                accOverview.classList.remove('active');
+                accRanking.classList.add('active');
+                renderRankingReport();
+            }
+        }
+
+        function shareToWhatsApp(tableId, title) {
+            const table = document.getElementById(tableId);
+            if (!table) { alert('Tabel tidak ditemukan.'); return; }
+
+            let message = `*${title}*\\n\\n`;
+            const profile = app.profile || {};
+            if (profile.namaKoordinat) message += `Koordinat: ${profile.namaKoordinat}\\n`;
+            if (profile.namaStokis) message += `Stokis: ${profile.namaStokis}\\n`;
+            if (profile.alamatStokis) message += `Alamat: ${profile.alamatStokis}\\n`;
+            message += `\\n`;
+
+            const rows = table.querySelectorAll('tbody tr');
+            if (!rows.length || (rows.length === 1 && rows[0].querySelector('td') && rows[0].querySelector('td').colSpan > 1)) {
+                alert('Belum ada data untuk dikirim.');
+                return;
             }
 
-            const infoText = [];
-            if(app.profile.namaKoordinat) infoText.push(`Nama Koordinat: ${app.profile.namaKoordinat}`);
-            if(app.profile.namaStokis) infoText.push(`Nama Stokis: ${app.profile.namaStokis}`);
-            infoP.innerHTML = infoText.join('<br>');
+            message += `Detail Data:\\n`;
+
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                const rowData = Array.from(cells).map(td => td.innerText);
+                message += rowData.join(' | ') + '\\n';
+            });
+
+            const encodedMessage = encodeURIComponent(message);
+            
+            const waNumber = profile.waNumber;
+            if(!waNumber || waNumber.length < 10) {
+                alert('Nomor WhatsApp belum disetting di Profil (Menu Profil).\\nFormat wajib: 628...');
+                return;
+            }
+
+            const url = `https://wa.me/${waNumber}?text=${encodedMessage}`;
+            window.open(url, '_blank');
+        }
+
+        function sendWAtoMember(memberId) {
+            const member = app.members.find(m => m.id === memberId);
+            if (!member) return;
+
+            if (!member.waNumber || member.waNumber.length < 10) {
+                alert(`Member ${member.name} belum memiliki nomor WhatsApp yang valid.\\nSilakan edit data member dan isi nomornya.`);
+                return;
+            }
+
+            if (!app.profile.waAutoMsg) {
+                alert('Format pesan otomatis belum disetting di halaman Pengaturan.');
+                return;
+            }
+
+            let message = app.profile.waAutoMsg.replace(/\[Nama\]/g, member.name);
+            
+            const encodedMessage = encodeURIComponent(message);
+            const url = `https://wa.me/${member.waNumber}?text=${encodedMessage}`;
+            window.open(url, '_blank');
+        }
+
+        function toggleScreen(screenName) {
+            if (screenName === 'login') {
+                document.getElementById('login-screen').style.display = 'flex';
+                document.getElementById('register-screen').style.display = 'none';
+            } else {
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('register-screen').style.display = 'flex';
+            }
+        }
+
+        function handleRegister(e) {
+            e.preventDefault();
+            app.loadUsers();
+
+            const u = document.getElementById('regUsername').value.trim().toLowerCase();
+            const p = document.getElementById('regPassword').value.trim().toLowerCase(); 
+
+            if (u.length < 3) { alert('Username terlalu pendek (Min 3 karakter)!'); return; }
+            if (p.length < 3) { alert('Password terlalu pendek (Min 3 karakter)!'); return; }
+            if (document.getElementById('regConfirmPassword').value.trim().toLowerCase() !== p) { alert('Konfirmasi password tidak sesuai!'); return; }
+
+            const exists = app.usersCredentials.find(user => user.username === u); 
+            if (exists) { alert('Username sudah digunakan! (Tidak membedakan huruf besar/kecil).'); return; }
+
+            app.usersCredentials.push({ username: u, password: p });
+            app.saveUsers();
+            refreshManageUserSelect();
+            
+            alert('Registrasi Berhasil! Silakan Login dengan akun Anda (Username tanpa spasi).');
+            document.getElementById('regUsername').value = '';
+            document.getElementById('regPassword').value = '';
+            document.getElementById('regConfirmPassword').value = '';
+            toggleScreen('login');
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('active');
+        }
+        function closeSidebarMobile() {
+            if (window.innerWidth <= 768) {
+                document.getElementById('sidebar').classList.remove('active');
+            }
+        }
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        // === LOGIN + LOAD DATA ONLINE ===
+        let unsubscribeRealtime = null;
+
+        async function afterLoginSuccess(username, isAdmin) {
+            currentUser = username.toLowerCase();
+
+            if (unsubscribeRealtime) {
+                unsubscribeRealtime();
+                unsubscribeRealtime = null;
+            }
+
+            try {
+                const remoteData = await window.loadUserDataFromFirestore(currentUser);
+                if (remoteData && !isAdmin) {
+                    app.products = remoteData.products || [];
+                    app.members = remoteData.members || [];
+                    app.transactions = remoteData.transactions || [];
+                    if (remoteData.profile) {
+                        app.profile = { ...app.profile, ...remoteData.profile };
+                    }
+                    console.log('[System] Data loaded from Firestore');
+                } else {
+                    app.loadSampleData();
+                    await window.saveUserDataToFirestore(currentUser, {
+                        products: app.products,
+                        members: app.members,
+                        transactions: app.transactions,
+                        profile: app.profile
+                    });
+                    console.log('[System] Sample data initialized to Firestore');
+                }
+            } catch (err) {
+                console.error('Gagal load Firestore, fallback sample:', err);
+                app.loadSampleData();
+            }
+
+            // Realtime listener (opsional, diaktifkan)
+            unsubscribeRealtime = window.listenUserDataRealtime(currentUser, (data) => {
+                if (!data) return;
+                app.products = data.products || [];
+                app.members = data.members || [];
+                app.transactions = data.transactions || [];
+                if (data.profile) {
+                    app.profile = { ...app.profile, ...data.profile };
+                }
+                app.render();
+                app.loadProfileUI();
+            });
+
+            // Tampilkan UI
+            const container = document.querySelector('.container');
+            container.style.display = 'grid'; 
+            document.querySelectorAll('.tab-content').forEach(t => {
+                t.style.display = 'none'; 
+                t.classList.remove('active');
+            });
+            const dashboard = document.getElementById('dashboard');
+            if(dashboard) {
+                dashboard.classList.add('active');
+                dashboard.style.display = 'block';
+            }
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('register-screen').style.display = 'none';
+
+            app.init();
+        }
+
+        async function checkLogin(e) {
+            e.preventDefault();
+            
+            app.loadUsers();
+
+            const u = document.getElementById('loginUsername').value.trim().toLowerCase();
+            const p = document.getElementById('loginPassword').value.trim().toLowerCase();
+
+            const isAdmin = (u === 'gmrj' && p === '333100');
+            const user = app.usersCredentials.find(cred => cred.username === u && cred.password === p);
+
+            if (isAdmin || user) {
+                console.log(`[System] Login Successful! User: ${u}`);
+                await afterLoginSuccess(u, isAdmin);
+            } else {
+                console.log(`[System] Login Failed. User: ${u}`);
+                alert('Username atau Password Salah! (Pastikan tidak ada spasi dan tidak membedakan huruf besar/kecil)');
+            }
+        }
+
+        function exportTransactionsToExcel() {
+            if (app.transactions.length === 0) { alert('Tidak ada data transaksi.'); return; }
+            let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
+            csvContent += "No,Kode Transaksi,Tanggal,Member,Produk,Jumlah\n";
+
+            app.transactions.forEach((t, index) => {
+                const m = app.members.find(mem => mem.id === t.memberId);
+                const p = app.products.find(prod => prod.code === t.productCode);
+                
+                const row = [
+                    index +1,           
+                    `"${t.code || '-'}"`,
+                    `"${t.date}"`,
+                    `"${m ? m.name : "Unknown"}"`,
+                    `"${p ? p.name : "Unknown"}"`,
+                    t.qty
+                ];
+                csvContent += row.join(",") + "\n";
+            });
+            
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "transaksi_stokis.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function exportMembersToExcel() {
+            if (app.members.length === 0) { alert('Tidak ada data member.'); return; }
+            let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
+            
+            csvContent += "ID,Nama,Upline,Koordinat\n";
+
+            app.members.forEach(m => {
+                const uplineName = app.members.find(u => u.id === m.upline)?.name || '';
+                
+                const row = [
+                    `"${m.id}"`,
+                    `"${m.name}"`,
+                    `"${uplineName}"`,
+                    `"${m.koordinat || ''}"`
+                ];
+                csvContent += row.join(",") + "\n";
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "data_member_stokis.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function exportPointsToExcel() {
+            if (app.members.length === 0) { alert('Tidak ada data member/poin.'); return; }
+            let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
+            csvContent += "Member,Poin Level 0,Poin Level 1,Poin Level 2,Poin Level 3,Poin Level 4,Poin Level 5,Total Poin\n";
+
+            app.members.forEach(member => {
+                const points = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+                
+                app.transactions.forEach(t => {
+                    const product = app.products.find(p => p.code === t.productCode);
+                    if (!product) return;
+
+                    const isPendan = product.name.toUpperCase().includes('PENDAN');
+                    const levels = isPendan ? 6 : 3;
+                    const totalProductPoints = parseFloat(product.point) * t.qty;
+
+                    if (t.memberId === member.id) {
+                        points[0] += totalProductPoints * 0.7; 
+                    }
+
+                    const memberHierarchy = app.getMemberHierarchy(t.memberId);
+                    const levelIndex = memberHierarchy.indexOf(member.id);
+                    
+                    if (levelIndex > 0 && levelIndex < levels) {
+                        let factor = 0;
+                        if (isPendan) {
+                            if (levelIndex === 1) factor = 0.1;
+                            else if (levelIndex === 2) factor = 0.08;
+                            else if (levelIndex === 3) factor = 0.06;
+                            else if (levelIndex === 4) factor = 0.04;
+                            else if (levelIndex === 5) factor = 0.02;
+                        } else {
+                            if (levelIndex === 1) factor = 0.2;
+                            else if (levelIndex === 2) factor = 0.1;
+                        }
+                        points[levelIndex] += totalProductPoints * factor;
+                    }
+                });
+
+                const total = Object.values(points).reduce((a, b) => a + b, 0);
+                
+                const row = [
+                    member.name,
+                    points[0].toFixed(2),
+                    points[1].toFixed(2),
+                    points[2].toFixed(2),
+                    points[3].toFixed(2),
+                    points[4].toFixed(2),
+                    points[5].toFixed(2),
+                    total.toFixed(2)
+                ];
+                csvContent += row.map(item => `"${item}"`).join(",") + "\n";
+            });
+            
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "Laporan_Poin_Member_Excel.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         }
 
         function exportData() {
@@ -1966,310 +2339,14 @@
             }
         }
 
-        function renderRankingTable() {
+        function renderRankingReport() {
             const tbody = document.querySelector('#ranking-table tbody');
             tbody.innerHTML = '';
 
-            const memberPoints = {};
-            const memberStats = {};
+            const memberTotals = app.members.map(m => {
+                let total = 0;
+                const points = { 0:0,1:0,2:0,3:0,4:0,5:0 };
 
-            app.members.forEach(m => {
-                memberPoints[m.id] = 0;
-                memberStats[m.id] = {
-                    name: m.name,
-                    upline: app.members.find(u => u.id === m.upline)?.name || '-'
-                };
-            });
-
-            app.transactions.forEach(t => {
-                const product = app.products.find(p => p.code === t.productCode);
-                if (!product) return;
-
-                const isPendan = product.name.toUpperCase().includes('PENDAN');
-                const levels = isPendan ? 6 : 3;
-                const totalProductPoints = parseFloat(product.point) * t.qty;
-
-                if (memberPoints[t.memberId] !== undefined) {
-                    memberPoints[t.memberId] += totalProductPoints * 0.7; 
-                }
-
-                const hierarchy = app.getMemberHierarchy(t.memberId);
-                
-                hierarchy.forEach((mId, levelIdx) => {
-                    if (levelIdx > 0 && levelIdx < levels && memberPoints[mId] !== undefined) {
-                        let factor = 0;
-                        if (isPendan) {
-                            if (levelIdx === 1) factor = 0.1; else if (levelIdx === 2) factor = 0.08;
-                            else if (levelIdx === 3) factor = 0.06; else if (levelIdx === 4) factor = 0.04;
-                            else if (levelIdx === 5) factor = 0.02;
-                        } else {
-                            if (levelIdx === 1) factor = 0.1; else if (levelIdx === 2) factor = 0.08;
-                        }
-                        memberPoints[mId] += totalProductPoints * factor;
-                    }
-                });
-            });
-
-            const ranking = Object.entries(memberPoints)
-                .map(([memberId, points]) => ({
-                    id: memberId,
-                    points,
-                    ...memberStats[memberId]
-                }))
-                .filter(item => item.points > 0)
-                .sort((a, b) => b.points - a.points);
-
-            if (ranking.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #999;">Belum ada point</td></tr>';
-                return;
-            }
-
-            ranking.forEach((item, idx) => {
-                const medalEmoji = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '•';
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td style="font-weight: 700; font-size: 16px; text-align: center;">
-                        ${medalEmoji} #${idx + 1}
-                    </td>
-                    <td style="text-align: center;"><strong>${item.id}</strong></td>
-                    <td>${item.name}</td>
-                    <td style="font-weight: 700; color: var(--color-primary); font-size: 16px; text-align: center;">
-                        ${item.points.toFixed(2)}
-                    </td>
-                    <td>${item.upline}</td>
-                `;
-                tbody.appendChild(row);
-            });
-        }
-
-        function shareToWhatsApp(tableId, title) {
-            const table = document.getElementById(tableId);
-            if(!table) return;
-            
-            let message = `*${title}*\n\n`;
-            
-            const profile = app.profile;
-            if(profile.namaStokis || profile.namaKoordinat) {
-                message += `*Data Stokis*\n`;
-                if(profile.namaStokis) message += `Stokis: ${profile.namaStokis}\n`;
-                if(profile.namaKoordinat) message += `Nama: ${profile.namaKoordinat}\n`;
-                if(profile.alamatStokis) message += `Alamat: ${profile.alamatStokis}\n`;
-                message += '\n';
-            }
-
-            const rows = table.querySelectorAll('tbody tr');
-            if(rows.length === 0) {
-                alert('Tidak ada data untuk dikirim!');
-                return;
-            }
-
-            const tfoot = table.querySelector('tfoot tr');
-            if(tfoot) {
-                 message += `\n*Total*\n`;
-                 const cells = tfoot.querySelectorAll('td');
-                 cells.forEach((cell, idx) => {
-                     if(idx > 0) { 
-                         const text = cell.innerText.replace(/,/g, ''); 
-                         message += `${text}\n`;
-                     }
-                 });
-            }
-
-            message += `\nDetail Data:\n`;
-
-            rows.forEach(row => {
-                const cells = row.querySelectorAll('td');
-                const rowData = Array.from(cells).map(td => td.innerText);
-                message += rowData.join(' | ') + '\n';
-            });
-
-            const encodedMessage = encodeURIComponent(message);
-            
-            const waNumber = profile.waNumber;
-            if(!waNumber || waNumber.length < 10) {
-                alert('Nomor WhatsApp belum disetting di Profil (Menu Profil).\nFormat wajib: 628...');
-                return;
-            }
-
-            const url = `https://wa.me/${waNumber}?text=${encodedMessage}`;
-            window.open(url, '_blank');
-        }
-
-        function sendWAtoMember(memberId) {
-            const member = app.members.find(m => m.id === memberId);
-            if (!member) return;
-
-            if (!member.waNumber || member.waNumber.length < 10) {
-                alert(`Member ${member.name} belum memiliki nomor WhatsApp yang valid.\nSilakan edit data member dan isi nomornya.`);
-                return;
-            }
-
-            if (!app.profile.waAutoMsg) {
-                alert('Format pesan otomatis belum disetting di halaman Pengaturan.');
-                return;
-            }
-
-            let message = app.profile.waAutoMsg.replace(/\[Nama\]/g, member.name);
-            
-            const encodedMessage = encodeURIComponent(message);
-            const url = `https://wa.me/${member.waNumber}?text=${encodedMessage}`;
-            window.open(url, '_blank');
-        }
-
-        function toggleScreen(screenName) {
-            if (screenName === 'login') {
-                document.getElementById('login-screen').style.display = 'flex';
-                document.getElementById('register-screen').style.display = 'none';
-            } else {
-                document.getElementById('login-screen').style.display = 'none';
-                document.getElementById('register-screen').style.display = 'flex';
-            }
-        }
-
-        function handleRegister(e) {
-            e.preventDefault();
-            app.loadUsers();
-
-            const u = document.getElementById('regUsername').value.trim().toLowerCase();
-            const p = document.getElementById('regPassword').value.trim().toLowerCase(); 
-
-            if (u.length < 3) { alert('Username terlalu pendek (Min 3 karakter)!'); return; }
-            if (p.length < 3) { alert('Password terlalu pendek (Min 3 karakter)!'); return; }
-            if (document.getElementById('regConfirmPassword').value.trim().toLowerCase() !== p) { alert('Konfirmasi password tidak sesuai!'); return; }
-
-            const exists = app.usersCredentials.find(user => user.username === u); 
-            if (exists) { alert('Username sudah digunakan! (Tidak membedakan huruf besar/kecil).'); return; }
-
-            app.usersCredentials.push({ username: u, password: p });
-            app.saveUsers();
-            
-            alert('Registrasi Berhasil! Silakan Login dengan akun Anda (Username tanpa spasi).');
-            document.getElementById('regUsername').value = '';
-            document.getElementById('regPassword').value = '';
-            document.getElementById('regConfirmPassword').value = '';
-            toggleScreen('login');
-        }
-
-        function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            sidebar.classList.toggle('active');
-        }
-        function closeSidebarMobile() {
-            if (window.innerWidth <= 768) {
-                document.getElementById('sidebar').classList.remove('active');
-            }
-        }
-        function closeModal(modalId) {
-            document.getElementById(modalId).classList.remove('active');
-        }
-        function checkLogin(e) {
-            e.preventDefault();
-            
-            app.loadUsers();
-
-            const u = document.getElementById('loginUsername').value.trim().toLowerCase();
-            const p = document.getElementById('loginPassword').value.trim().toLowerCase();
-
-            const isAdmin = (u === 'gmrj' && p === '333100');
-            const user = app.usersCredentials.find(cred => cred.username === u && cred.password === p);
-
-            if (isAdmin || user) {
-                console.log(`[System] Login Successful! User: ${u}`);
-                
-                currentUser = u;
-
-                if (isAdmin) {
-                    app.STORAGE_KEY = app.STORAGE_KEY_ADMIN;
-                } else {
-                    app.STORAGE_KEY = STORAGE_KEY_PREFIX + u;
-                }
-
-                const container = document.querySelector('.container');
-                container.style.display = 'grid'; 
-                document.querySelectorAll('.tab-content').forEach(t => {
-                    t.style.display = 'none'; 
-                    t.classList.remove('active');
-                });
-                const dashboard = document.getElementById('dashboard');
-                if(dashboard) {
-                    dashboard.classList.add('active');
-                    dashboard.style.display = 'block';
-                }
-
-                document.getElementById('login-screen').style.display = 'none';
-                document.getElementById('register-screen').style.display = 'none';
-                
-                app.init();
-            } else {
-                console.log(`[System] Login Failed. User: ${u}`);
-                alert('Username atau Password Salah! (Pastikan tidak ada spasi dan tidak membedakan huruf besar/kecil)');
-            }
-        }
-
-        function exportTransactionsToExcel() {
-            if (app.transactions.length === 0) { alert('Tidak ada data transaksi.'); return; }
-            let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
-            csvContent += "No,Kode Transaksi,Tanggal,Member,Produk,Jumlah\n";
-
-            app.transactions.forEach((t, index) => {
-                const m = app.members.find(mem => mem.id === t.memberId);
-                const p = app.products.find(prod => prod.code === t.productCode);
-                
-                const row = [
-                    index +1,           
-                    `"${t.code || '-'}"`,
-                    `"${t.date}"`,
-                    `"${m ? m.name : "Unknown"}"`,
-                    `"${p ? p.name : "Unknown"}"`,
-                    t.qty
-                ];
-                csvContent += row.join(",") + "\n";
-            });
-            
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", "transaksi_stokis.csv");
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-
-        function exportMembersToExcel() {
-            if (app.members.length === 0) { alert('Tidak ada data member.'); return; }
-            let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
-            
-            csvContent += "ID,Nama,Upline,Koordinat\n";
-
-            app.members.forEach(m => {
-                const uplineName = app.members.find(u => u.id === m.upline)?.name || '';
-                
-                const row = [
-                    `"${m.id}"`,
-                    `"${m.name}"`,
-                    `"${uplineName}"`,
-                    `"${m.koordinat || ''}"`
-                ];
-                csvContent += row.join(",") + "\n";
-            });
-
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", "data_member_stokis.csv");
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-
-        function exportPointsToExcel() {
-            if (app.members.length === 0) { alert('Tidak ada data member/poin.'); return; }
-            let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
-            csvContent += "Member,Poin Level 0,Poin Level 1,Poin Level 2,Poin Level 3,Poin Level 4,Poin Level 5,Total Poin\n";
-
-            app.members.forEach(member => {
-                const points = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-                
                 app.transactions.forEach(t => {
                     const product = app.products.find(p => p.code === t.productCode);
                     if (!product) return;
@@ -2278,58 +2355,59 @@
                     const levels = isPendan ? 6 : 3;
                     const totalProductPoints = parseFloat(product.point) * t.qty;
 
-                    if (t.memberId === member.id) {
-                        points[0] += totalProductPoints * 0.7; 
+                    if (t.memberId === m.id) {
+                        points[0] += totalProductPoints * 0.7;
                     }
 
-                    const memberHierarchy = app.getMemberHierarchy(t.memberId);
-                    const levelIndex = memberHierarchy.indexOf(member.id);
-                    
-                    if (levelIndex > 0 && levelIndex < levels) {
+                    const hierarchy = app.getMemberHierarchy(t.memberId);
+                    const idx = hierarchy.indexOf(m.id);
+
+                    if (idx > 0 && idx < levels) {
                         let factor = 0;
                         if (isPendan) {
-                            if (levelIndex === 1) factor = 0.1;
-                            else if (levelIndex === 2) factor = 0.08;
-                            else if (levelIndex === 3) factor = 0.06;
-                            else if (levelIndex === 4) factor = 0.04;
-                            else if (levelIndex === 5) factor = 0.02;
+                            if (idx === 1) factor = 0.1;
+                            else if (idx === 2) factor = 0.08;
+                            else if (idx === 3) factor = 0.06;
+                            else if (idx === 4) factor = 0.04;
+                            else if (idx === 5) factor = 0.02;
                         } else {
-                            if (levelIdx === 1) factor = 0.1;
-                            else if (levelIdx === 2) factor = 0.08;
+                            if (idx === 1) factor = 0.2;
+                            else if (idx === 2) factor = 0.1;
                         }
-                        points[levelIndex] += totalProductPoints * factor;
+                        points[idx] += totalProductPoints * factor;
                     }
                 });
 
-                const total = Object.values(points).reduce((a, b) => a + b, 0);
-                
-                const row = [
-                    member.name,
-                    points[0].toFixed(2),
-                    points[1].toFixed(2),
-                    points[2].toFixed(2),
-                    points[3].toFixed(2),
-                    points[4].toFixed(2),
-                    points[5].toFixed(2),
-                    total.toFixed(2)
-                ];
-                csvContent += row.map(item => `"${item}"`).join(",") + "\n";
+                total = Object.values(points).reduce((a,b)=>a+b,0);
+                return { member: m, total };
             });
-            
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", "Laporan_Poin_Member_Excel.csv");
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+
+            memberTotals.sort((a,b)=> b.total - a.total);
+
+            memberTotals.forEach((mt, index) => {
+                const uplineName = app.members.find(u => u.id === mt.member.upline)?.name || '-';
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td style="text-align:center;">${index+1}</td>
+                    <td style="text-align:center;">${mt.member.id}</td>
+                    <td>${mt.member.name}</td>
+                    <td style="text-align:right; font-weight:700; color:var(--color-primary);">${mt.total.toFixed(2)}</td>
+                    <td>${uplineName}</td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            if (!tbody.innerHTML) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#9ca3af; padding:20px;">Belum ada data poin</td></tr>';
+            }
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            app.loadUsers();
-            document.getElementById('login-screen').style.display = 'flex';
-            document.getElementById('register-screen').style.display = 'none';
-        });
+    app.loadUsers();
+    refreshManageUserSelect();   // isi dropdown user
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('register-screen').style.display = 'none';
+});
         document.addEventListener('click', (e) => {
             if (e.target.classList.contains('modal')) { e.target.classList.remove('active'); }
             if (window.innerWidth <= 768 && !e.target.closest('.sidebar') && !e.target.closest('.mobile-menu-btn')) {
