@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Data Transaksi Stokis GMRJ (Fixed Login)</title>
+    <title>Data Transaksi Stokis GMRJ (Cloud Login)</title>
     <style>
         :root {
             /* Palet Warna Hijau Profesional */
@@ -436,16 +436,23 @@
       const appFirebase = initializeApp(firebaseConfig);
       const db = getFirestore(appFirebase);
       window.firestoreDB = db;
+      
+      // EXPOSE FUNGSI UTAMA KE WINDOW AGAR BISA DIPAKAI DI SCRIPT UTAMA
+      window.firestoreDoc = doc;
+      window.firestoreGetDoc = getDoc;
+      window.firestoreSetDoc = setDoc;
+      window.firestoreOnSnapshot = onSnapshot;
+      window.firestoreCollection = collection;
 
       // === HELPERS DATA PER USER (ONLINE STORAGE) ===
       window.getUserDocRef = function(username) {
         const clean = (username || '').toLowerCase();
-        return doc(db, 'stokisDatas', clean);
+        return window.firestoreDoc(db, 'stokisDatas', clean);
       };
 
       window.loadUserDataFromFirestore = async function(username) {
         const ref = window.getUserDocRef(username);
-        const snap = await getDoc(ref);
+        const snap = await window.firestoreGetDoc(ref);
         if (snap.exists()) {
           return snap.data();
         }
@@ -454,12 +461,12 @@
 
       window.saveUserDataToFirestore = async function(username, data) {
         const ref = window.getUserDocRef(username);
-        await setDoc(ref, data, { merge: true });
+        await window.firestoreSetDoc(ref, data, { merge: true });
       };
 
       window.listenUserDataRealtime = function(username, callback) {
         const ref = window.getUserDocRef(username);
-        return onSnapshot(ref, (snap) => {
+        return window.firestoreOnSnapshot(ref, (snap) => {
           if (snap.exists()) {
             callback(snap.data());
           }
@@ -896,26 +903,17 @@
             <!-- Manajemen User Login -->
             <hr style="border: 0; border-top: 1px solid #d1fae5;">
             <div>
-                <h4>👥 Manajemen User Login</h4>
+                <h4>👥 Manajemen User Login (Browser Ini)</h4>
                 <p style="font-size: 13px; color: var(--color-text-light); margin-bottom: var(--spacing-8);">
-                    Ganti username dan password user yang sudah terdaftar (hanya tersimpan di browser/perangkat ini).
+                    Catatan: Fitur Login & Registrasi utama sekarang menggunakan <strong>Firestore (Online)</strong>. Menu ini hanya menampilkan user legacy (lama).
                 </p>
 
                 <div style="margin-bottom: 12px; padding: 10px; border-radius: 8px; background:#fff; border:1px solid #e5e7eb;">
-                    <label style="font-size: 13px; font-weight:600; margin-bottom:6px; display:block;">Pilih User</label>
+                    <label style="font-size: 13px; font-weight:600; margin-bottom:6px; display:block;">Pilih User Legacy</label>
                     <select id="manageUserSelect" style="margin-bottom:8px; width:100%; padding:8px 10px; border-radius:8px; border:1px solid #d1d5db;">
                         <option value="">-- Pilih User --</option>
                     </select>
-
-                    <label style="font-size: 13px; font-weight:600; margin-bottom:6px; display:block;">Username Baru</label>
-                    <input type="text" id="manageUserNewName" placeholder="Username baru (huruf kecil, tanpa spasi)" style="margin-bottom:8px;">
-
-                    <label style="font-size: 13px; font-weight:600; margin-bottom:6px; display:block;">Password Baru</label>
-                    <input type="password" id="manageUserNewPass" placeholder="Password baru (min 3 karakter)">
-
-                    <button class="btn btn-primary" style="margin-top:8px; width:100%;" onclick="updateUserAccount()">
-                        💾 Simpan Perubahan
-                    </button>
+                    <small style="color:#64748b; font-size:11px;">Hanya untuk melihat user yang tersimpan di LocalStorage (Offline).</small>
                 </div>
             </div>
 
@@ -1128,10 +1126,10 @@
                     const stored = localStorage.getItem(this.STORAGE_KEY_USERS);
                     if (stored) {
                         this.usersCredentials = JSON.parse(stored);
-                        console.log(`[System] Loaded ${this.usersCredentials.length} user(s).`);
+                        console.log(`[System] Loaded ${this.usersCredentials.length} legacy user(s).`);
                     } else {
                         this.usersCredentials = [];
-                        console.log(`[System] No users found. List initialized.`);
+                        console.log(`[System] No legacy users found.`);
                     }
                 } catch(e) {
                     console.error("Error loading users", e);
@@ -1142,7 +1140,7 @@
             saveUsers() {
                 try {
                     localStorage.setItem(this.STORAGE_KEY_USERS, JSON.stringify(this.usersCredentials));
-                    console.log(`[System] Saved ${this.usersCredentials.length} user(s).`);
+                    console.log(`[System] Saved ${this.usersCredentials.length} legacy user(s).`);
                 } catch(e) {
                     alert("Gagal menyimpan data user! (Browser mungkin menolak LocalStorage)");
                 }
@@ -1284,9 +1282,14 @@
             },
 
             renderDashboard() {
-                document.getElementById('total-members').textContent = this.members.length;
-                document.getElementById('total-products').textContent = this.products.length;
-                document.getElementById('total-transactions').textContent = this.transactions.length;
+                const safeSetText = (id, text) => {
+                    const el = document.getElementById(id);
+                    if (el) el.textContent = text;
+                };
+
+                safeSetText('total-members', this.members.length);
+                safeSetText('total-products', this.products.length);
+                safeSetText('total-transactions', this.transactions.length);
 
                 const totalPoints = this.transactions.reduce((sum, t) => {
                     const product = this.products.find(p => p.code === t.productCode);
@@ -1294,31 +1297,34 @@
                     return sum;
                 }, 0);
                 
-                document.getElementById('total-points').textContent = totalPoints.toFixed(2);
+                safeSetText('total-points', totalPoints.toFixed(2));
 
                 const tbody = document.querySelector('#recent-transactions tbody');
-                tbody.innerHTML = '';
-                if (this.transactions.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #9ca3af; padding: 24px;">Belum ada data</td></tr>';
-                } else {
-                    this.transactions.slice(-5).reverse().forEach(t => {
-                        const member = this.members.find(m => m.id === t.memberId);
-                        const product = this.products.find(p => p.code === t.productCode);
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                            <td>${t.date}</td>
-                            <td>${member?.name || 'Unknown'}</td>
-                            <td>${product?.name || 'Unknown'}</td>
-                            <td class="text-right">${t.qty}</td>
-                            <td class="text-right font-mono" style="color: var(--color-success); font-weight: 700;">${t.totalPoints.toFixed(2)}</td>
-                        `;
-                        tbody.appendChild(row);
-                    });
+                if (tbody) {
+                    tbody.innerHTML = '';
+                    if (this.transactions.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #9ca3af; padding: 24px;">Belum ada data</td></tr>';
+                    } else {
+                        this.transactions.slice(-5).reverse().forEach(t => {
+                            const member = this.members.find(m => m.id === t.memberId);
+                            const product = this.products.find(p => p.code === t.productCode);
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${t.date}</td>
+                                <td>${member?.name || 'Unknown'}</td>
+                                <td>${product?.name || 'Unknown'}</td>
+                                <td class="text-right">${t.qty}</td>
+                                <td class="text-right font-mono" style="color: var(--color-success); font-weight: 700;">${t.totalPoints.toFixed(2)}</td>
+                            `;
+                            tbody.appendChild(row);
+                        });
+                    }
                 }
             },
 
             renderProducts() {
                 const tbody = document.querySelector('#products-table tbody');
+                if(!tbody) return;
                 tbody.innerHTML = '';
                 
                 this.products.forEach(p => {
@@ -1343,6 +1349,7 @@
 
             renderMembers() {
                 const tbody = document.querySelector('#members-table tbody');
+                if(!tbody) return;
                 tbody.innerHTML = '';
                 this.members.forEach(m => {
                     const uplineName = this.members.find(u => u.id === m.upline)?.name || '-';
@@ -1374,6 +1381,7 @@
 
             renderTransactions() {
                 const tbody = document.querySelector('#transactions-table tbody');
+                if(!tbody) return;
                 tbody.innerHTML = '';
                 this.transactions.forEach((t, idx) => {
                     const member = this.members.find(m => m.id === t.memberId);
@@ -1397,6 +1405,7 @@
 
             renderPoints() {
                 const tbody = document.querySelector('#points-table tbody');
+                if(!tbody) return;
                 tbody.innerHTML = '';
 
                 this.members.forEach(member => {
@@ -1508,77 +1517,13 @@
         };
 function refreshManageUserSelect() {
     const sel = document.getElementById('manageUserSelect');
-    const newNameInput = document.getElementById('manageUserNewName');
-    const newPassInput = document.getElementById('manageUserNewPass');
     if (!sel) return;
 
     app.loadUsers();
-    sel.innerHTML = '<option value="">-- Pilih User --</option>';
+    sel.innerHTML = '<option value="">-- Pilih User Legacy --</option>';
     app.usersCredentials.forEach(u => {
         sel.innerHTML += `<option value="${u.username}">${u.username}</option>`;
     });
-
-    if (newNameInput) newNameInput.value = '';
-    if (newPassInput) newPassInput.value = '';
-}
-
-function updateUserAccount() {
-    const sel = document.getElementById('manageUserSelect');
-    const newNameInput = document.getElementById('manageUserNewName');
-    const newPassInput = document.getElementById('manageUserNewPass');
-
-    const oldUsername = (sel?.value || '').toLowerCase();
-    const newUsernameRaw = (newNameInput?.value || '').trim().toLowerCase();
-    const newPassRaw = (newPassInput?.value || '').trim().toLowerCase();
-
-    if (!oldUsername) {
-        alert('Pilih user terlebih dahulu.');
-        return;
-    }
-    if (!newUsernameRaw && !newPassRaw) {
-        alert('Isi minimal salah satu: username baru atau password baru.');
-        return;
-    }
-
-    if (newUsernameRaw) {
-        if (newUsernameRaw.length < 3) {
-            alert('Username baru minimal 3 karakter.');
-            return;
-        }
-        if (newUsernameRaw.indexOf(' ') !== -1) {
-            alert('Username baru tidak boleh mengandung spasi.');
-            return;
-        }
-    }
-
-    if (newPassRaw && newPassRaw.length < 3) {
-        alert('Password baru minimal 3 karakter.');
-        return;
-    }
-
-    app.loadUsers();
-    const user = app.usersCredentials.find(u => u.username === oldUsername);
-    if (!user) {
-        alert('User tidak ditemukan di penyimpanan browser ini.');
-        return;
-    }
-
-    if (newUsernameRaw && newUsernameRaw !== oldUsername) {
-        const exists = app.usersCredentials.find(u => u.username === newUsernameRaw);
-        if (exists) {
-            alert('Username baru sudah digunakan user lain.');
-            return;
-        }
-        user.username = newUsernameRaw;
-    }
-
-    if (newPassRaw) {
-        user.password = newPassRaw;
-    }
-
-    app.saveUsers();
-    refreshManageUserSelect();
-    alert('Akun user berhasil diperbarui.');
 }
 
         // === LOGIKA SUPPORT (TIDAK DIUBAH) ===
@@ -1998,10 +1943,9 @@ function updateUserAccount() {
             }
         }
 
-        function handleRegister(e) {
+        // --- 1. FUNGSI REGISTRASI (Diperbarui: KE FIRESTORE) ---
+        async function handleRegister(e) {
             e.preventDefault();
-            app.loadUsers();
-
             const u = document.getElementById('regUsername').value.trim().toLowerCase();
             const p = document.getElementById('regPassword').value.trim().toLowerCase(); 
 
@@ -2009,18 +1953,42 @@ function updateUserAccount() {
             if (p.length < 3) { alert('Password terlalu pendek (Min 3 karakter)!'); return; }
             if (document.getElementById('regConfirmPassword').value.trim().toLowerCase() !== p) { alert('Konfirmasi password tidak sesuai!'); return; }
 
-            const exists = app.usersCredentials.find(user => user.username === u); 
-            if (exists) { alert('Username sudah digunakan! (Tidak membedakan huruf besar/kecil).'); return; }
+            try {
+                // Cek apakah user sudah ada di Firestore
+                const userRef = window.firestoreDoc(window.firestoreDB, 'stokis_users', u);
+                const snap = await window.firestoreGetDoc(userRef);
 
-            app.usersCredentials.push({ username: u, password: p });
-            app.saveUsers();
-            refreshManageUserSelect();
-            
-            alert('Registrasi Berhasil! Silakan Login dengan akun Anda (Username tanpa spasi).');
-            document.getElementById('regUsername').value = '';
-            document.getElementById('regPassword').value = '';
-            document.getElementById('regConfirmPassword').value = '';
-            toggleScreen('login');
+                if (snap.exists()) {
+                    alert('Username sudah digunakan (Global)!');
+                    return;
+                }
+
+                // Simpan ke Firestore Auth
+                await window.firestoreSetDoc(userRef, {
+                    username: u,
+                    password: p,
+                    createdAt: new Date().toISOString()
+                });
+
+                // Siapkan Data Kosong untuk user baru di koleksi stokisDatas
+                const dataRef = window.firestoreDoc(window.firestoreDB, 'stokisDatas', u);
+                await window.firestoreSetDoc(dataRef, {
+                    profile: { namaStokis: 'Stokis Baru' },
+                    products: [],
+                    members: [],
+                    transactions: []
+                });
+
+                alert('Registrasi Berhasil! Sekarang User bisa login dari browser mana saja.');
+                document.getElementById('regUsername').value = '';
+                document.getElementById('regPassword').value = '';
+                document.getElementById('regConfirmPassword').value = '';
+                toggleScreen('login');
+
+            } catch (error) {
+                console.error("Register Error:", error);
+                alert("Gagal mendaftar. Cek koneksi internet.");
+            }
         }
 
         function toggleSidebar() {
@@ -2058,19 +2026,19 @@ function updateUserAccount() {
                     }
                     console.log('[System] Data loaded from Firestore');
                } else {
-    console.log('[System] No data found, starting with empty');
-    // JANGAN auto-load sample data
-    app.products = [];
-    app.members = [];
-    app.transactions = [];
-}
-    } catch (err) {
-    console.error('Gagal load Firestore:', err);
-    // JANGAN auto-load sample data saat error
-    app.products = [];
-    app.members = [];
-    app.transactions = [];
-}
+                    console.log('[System] No data found, starting with empty');
+                    // JANGAN auto-load sample data
+                    app.products = [];
+                    app.members = [];
+                    app.transactions = [];
+                }
+            } catch (err) {
+                console.error('Gagal load Firestore:', err);
+                // JANGAN auto-load sample data saat error
+                app.products = [];
+                app.members = [];
+                app.transactions = [];
+            }
 
             // Realtime listener (opsional, diaktifkan)
             unsubscribeRealtime = window.listenUserDataRealtime(currentUser, (data) => {
@@ -2103,23 +2071,41 @@ function updateUserAccount() {
             app.init();
         }
 
+        // --- 2. FUNGSI LOGIN (Diperbarui: BACA FIRESTORE) ---
         async function checkLogin(e) {
             e.preventDefault();
             
-            app.loadUsers();
-
             const u = document.getElementById('loginUsername').value.trim().toLowerCase();
             const p = document.getElementById('loginPassword').value.trim().toLowerCase();
 
+            // Cek Admin Hardcoded
             const isAdmin = (u === 'gmrj' && p === '333100');
-            const user = app.usersCredentials.find(cred => cred.username === u && cred.password === p);
+            if (isAdmin) {
+                await afterLoginSuccess(u, true);
+                return;
+            }
 
-            if (isAdmin || user) {
-                console.log(`[System] Login Successful! User: ${u}`);
-                await afterLoginSuccess(u, isAdmin);
-            } else {
-                console.log(`[System] Login Failed. User: ${u}`);
-                alert('Username atau Password Salah! (Pastikan tidak ada spasi dan tidak membedakan huruf besar/kecil)');
+            // Cek di Firestore (Cloud)
+            try {
+                const userDocRef = window.firestoreDoc(window.firestoreDB, 'stokis_users', u);
+                const userSnap = await window.firestoreGetDoc(userDocRef);
+
+                if (userSnap.exists()) {
+                    const userData = userSnap.data();
+                    // Bandingkan password di Firestore dengan input user
+                    if (userData.password === p) {
+                        console.log(`[System] Login Firestore Success: ${u}`);
+                        await afterLoginSuccess(u, false);
+                    } else {
+                        alert('Password Salah! (Cek lagi password yang ada di Super Admin)');
+                    }
+                } else {
+                    // Jika tidak ada di Firestore, Tidak cek LocalStorage (Kita pakai Cloud saja)
+                    alert('Username tidak ditemukan! Silakan daftar akun baru.');
+                }
+            } catch (error) {
+                console.error("Login Error:", error);
+                alert("Gagal koneksi ke Database. Periksa Internet Anda atau Rules Firestore.");
             }
         }
 
@@ -2298,6 +2284,7 @@ function updateUserAccount() {
 
         function renderOverviewReport() {
             const tbody = document.querySelector('#report-table tbody');
+            if(!tbody) return;
             tbody.innerHTML = '';
             
             let totalBeliQty = 0;
@@ -2332,22 +2319,28 @@ function updateUserAccount() {
                 }
             });
             
-            document.getElementById('report-sum-beli').textContent = totalBeliQty;
-            document.getElementById('report-sum-point-beli').textContent = totalBeliPoint.toFixed(2);
-            document.getElementById('report-sum-jual').textContent = totalJualQty;
-            document.getElementById('report-sum-point-jual').textContent = totalJualPoint.toFixed(2);
+            const setSafeText = (id, val) => {
+                const el = document.getElementById(id);
+                if(el) el.textContent = val;
+            }
+
+            setSafeText('report-sum-beli', totalBeliQty);
+            setSafeText('report-sum-point-beli', totalBeliPoint.toFixed(2));
+            setSafeText('report-sum-jual', totalJualQty);
+            setSafeText('report-sum-point-jual', totalJualPoint.toFixed(2));
 
             if (tbody.innerHTML === '') {
                 tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #9ca3af; padding: 20px;">Belum ada data</td></tr>';
-                document.getElementById('report-sum-beli').textContent = 0;
-                document.getElementById('report-sum-point-beli').textContent = "0.00";
-                document.getElementById('report-sum-jual').textContent = 0;
-                document.getElementById('report-sum-point-jual').textContent = "0.00";
+                setSafeText('report-sum-beli', 0);
+                setSafeText('report-sum-point-beli', "0.00");
+                setSafeText('report-sum-jual', 0);
+                setSafeText('report-sum-point-jual', "0.00");
             }
         }
 
         function renderRankingReport() {
             const tbody = document.querySelector('#ranking-table tbody');
+            if(!tbody) return;
             tbody.innerHTML = '';
 
             const memberTotals = app.members.map(m => {
@@ -2424,6 +2417,3 @@ function updateUserAccount() {
     </script>
 </body>
 </html>
-
-
-
